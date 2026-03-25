@@ -4,7 +4,7 @@
   "description": "This folder will contain:\r - API endpoints\r - Authentication logic\r - Application processing\r - Business logic",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node src/server.js"
   },
   "keywords": [],
   "author": "",
