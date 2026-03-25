@@ -8,3 +8,5 @@ It allows:
 - Residents to manage their account
 
 More details will be added as the project evolves.
+
+Testing connection from Ashley's VS Code setup.
