@@ -45,3 +45,12 @@ This query shows:
 Applicant status (Pending or Approved)
 Lease status
 Payment information
+
+
+
+
+## Database Schema (UML)
+
+The following diagram reflects the implemented database schema and table relationships:
+
+![Database UML](../assets/wireframes/Capstone_UML_vSchema.png)
