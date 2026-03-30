@@ -1,24 +1,81 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function ResidentDashboard() {
-
-  // 1. State for Tenant Data (Money & Dates)
   const [tenant, setTenant] = useState({
-    name: "Alex Johnson",
-    rentBalance: 1250.00,
-    rentDue: "April 6th, 2026",
-    utilitiesBalance: 85.20,
-    utilitiesDue: "April 10th, 2026",
+    name: "",
+    rentBalance: 0,
+    rentDue: "",
+    utilitiesBalance: 0,
+    utilitiesDue: "",
     status: "Unpaid"
   });
 
-  // 2. State for Maintenance Tracking List
-  const [requests, setRequests] = useState([
-    { id: 1, type: "Plumbing", description: "Leaky faucet in kitchen", status: "In Progress", date: "Mar 22" },
-    { id: 2, type: "Lighting", description: "Hallway bulb out", status: "Completed", date: "Mar 15" }
-  ]);
+  const [announcement, setAnnouncement] = useState("Loading announcement...");
 
-  // 3. Simulated Payment Logic
+  const [requests, setRequests] = useState([]);
+
+  useEffect(() => {
+    fetchTenantDashboard();
+    fetchAnnouncements();
+    fetchMaintenanceRequests();
+  }, []);
+
+  const fetchTenantDashboard = async () => {
+    try {
+      const response = await fetch("http://localhost:3000/api/dashboard/tenant-dashboard");
+      const data = await response.json();
+
+      setTenant({
+        name: data.tenant.name,
+        rentBalance: Number(data.rentStatus.amountDue),
+        rentDue: data.rentStatus.dueDate,
+        utilitiesBalance: Number(data.utilities.amountDue),
+        utilitiesDue: data.utilities.dueDate,
+        status:
+          Number(data.rentStatus.amountDue) === 0 && Number(data.utilities.amountDue) === 0
+            ? "Paid"
+            : "Unpaid"
+      });
+    } catch (error) {
+      console.error("Error fetching tenant dashboard:", error);
+    }
+  };
+
+  const fetchAnnouncements = async () => {
+    try {
+      const response = await fetch("http://localhost:3000/api/dashboard/announcements");
+      const data = await response.json();
+
+      if (data.length > 0) {
+        setAnnouncement(data[0].message);
+      } else {
+        setAnnouncement("No announcements at this time.");
+      }
+    } catch (error) {
+      console.error("Error fetching announcements:", error);
+      setAnnouncement("Unable to load announcements.");
+    }
+  };
+
+  const fetchMaintenanceRequests = async () => {
+    try {
+      const response = await fetch("http://localhost:3000/api/maintenance/maintenance-requests/2");
+      const data = await response.json();
+
+      const formattedRequests = data.map((req) => ({
+        id: req.requestId,
+        type: req.title,
+        description: req.description,
+        status: req.status,
+        date: req.requestDate
+      }));
+
+      setRequests(formattedRequests);
+    } catch (error) {
+      console.error("Error fetching maintenance requests:", error);
+    }
+  };
+
   const handlePayment = () => {
     if (window.confirm("Confirm payment of $" + (tenant.rentBalance + tenant.utilitiesBalance).toFixed(2) + "?")) {
       setTenant({
@@ -30,40 +87,59 @@ export default function ResidentDashboard() {
     }
   };
 
-  // 4. Simulated Maintenance Submission
-  const handleNewRequest = () => {
+  const handleNewRequest = async () => {
     const issue = prompt("What is the maintenance issue?");
-    if (issue) {
-      const newReq = {
-        id: Date.now(),
-        type: "General",
-        description: issue,
-        status: "Pending",
-        date: "Today"
-      };
-      setRequests([newReq, ...requests]);
+    if (!issue) return;
+
+    try {
+      const response = await fetch("http://localhost:3000/api/maintenance/maintenance-request", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          title: "General",
+          description: issue,
+          userId: 2,
+          unitId: 1
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.message || "Failed to submit request");
+        return;
+      }
+
+      fetchMaintenanceRequests();
+    } catch (error) {
+      console.error("Error submitting maintenance request:", error);
+      alert("Unable to connect to server");
     }
   };
 
   return (
     <div className="portal-container">
-      {/* BRANDING & WELCOME MESSAGE */}
-      {tenant.status == "Paid" && (<div className="success-toast"> <span>Payment Successful! Your reciept #8829 has been generated.</span> </div>)}
+      {tenant.status === "Paid" && (
+        <div className="success-toast">
+          <span>Payment Successful! Your receipt #8829 has been generated.</span>
+        </div>
+      )}
+
       <header className="portal-header">
         <div className="header-content">
-        <h1>NextGen Living</h1>
-        <h2>Resident Portal</h2>
-        <div className="user-badge">Welcome, {tenant.name}</div>
+          <h1>NextGen Living</h1>
+          <h2>Resident Portal</h2>
+          <div className="user-badge">Welcome, {tenant.name}</div>
         </div>
       </header>
 
-      {/* ANNOUNCEMENTS SECTION */}
       <div className="announcement-banner">
-        <strong>Announcement:</strong> Pest control will be visiting Building B this Thursday.
+        <strong>Announcement:</strong> {announcement}
       </div>
 
       <main className="portal-main">
-        {/* RENT CARD (Side-by-Side) */}
         <section className="info-card">
           <h3>Rent Status</h3>
           <div className="info-row">
@@ -73,9 +149,8 @@ export default function ResidentDashboard() {
             </span>
           </div>
           <p>Due: {tenant.rentDue}</p>
-          </section>
+        </section>
 
-        {/* UTILITIES CARD (Side-by-Side) */}
         <section className="info-card">
           <h3>Utilities</h3>
           <div className="info-row">
@@ -85,17 +160,16 @@ export default function ResidentDashboard() {
             </span>
           </div>
           <p>Due: {tenant.utilitiesDue}</p>
-          <p style={{fontSize: '0.8rem', color: '#6b7280'}}>Includes March usage</p>
+          <p style={{ fontSize: '0.8rem', color: '#6b7280' }}>Includes March usage</p>
         </section>
       </main>
-      
+
       <div className="payment-action-area">
         <button className="pay-btn" onClick={handlePayment} disabled={tenant.status === "Paid"}>
-            {tenant.status === "Paid" ? "Paid ✓" : "Pay Now"}
-          </button>
-        </div>
+          {tenant.status === "Paid" ? "Paid ✓" : "Pay Now"}
+        </button>
+      </div>
 
-      {/* MAINTENANCE TRACKING SECTION (Full Width Below) */}
       <section className="info-card" style={{ marginTop: '20px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
           <h3>Maintenance Requests</h3>
