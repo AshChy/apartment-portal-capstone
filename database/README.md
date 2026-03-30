@@ -1,5 +1,7 @@
 ## Database Overview
 
+Please **DO NOT** edit the .db file. Please let me  know if you have any questions or need anything updated.
+
 This SQLite database supports the apartment portal system by managing users, applications, leases, and payments. It includes sample data to show how an applicant moves through approval, lease creation, and payment tracking.
 
 ### Requirements
