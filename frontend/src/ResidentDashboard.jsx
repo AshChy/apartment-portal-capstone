@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 
-export default function ResidentDashboard() {
+export default function ResidentDashboard({ currentUser }) {
+  const userId = currentUser?.userId;
+
   const [tenant, setTenant] = useState({
     name: "",
     rentBalance: 0,
@@ -11,14 +13,15 @@ export default function ResidentDashboard() {
   });
 
   const [announcement, setAnnouncement] = useState("Loading announcement...");
-
   const [requests, setRequests] = useState([]);
 
   useEffect(() => {
+    if (!userId) return;
+
     fetchTenantDashboard();
     fetchAnnouncements();
     fetchMaintenanceRequests();
-  }, []);
+  }, [userId]);
 
   const fetchTenantDashboard = async () => {
     try {
@@ -59,7 +62,9 @@ export default function ResidentDashboard() {
 
   const fetchMaintenanceRequests = async () => {
     try {
-      const response = await fetch("http://localhost:3000/api/maintenance/maintenance-requests/2");
+      const response = await fetch(
+        `http://localhost:3000/api/maintenance/maintenance-requests/${userId}`
+      );
       const data = await response.json();
 
       const formattedRequests = data.map((req) => ({
@@ -100,8 +105,7 @@ export default function ResidentDashboard() {
         body: JSON.stringify({
           title: "General",
           description: issue,
-          userId: 2,
-          unitId: 1
+          userId
         })
       });
 
@@ -119,6 +123,10 @@ export default function ResidentDashboard() {
     }
   };
 
+  if (!userId) {
+    return <div>Loading user...</div>;
+  }
+
   return (
     <div className="portal-container">
       {tenant.status === "Paid" && (
@@ -131,7 +139,7 @@ export default function ResidentDashboard() {
         <div className="header-content">
           <h1>NextGen Living</h1>
           <h2>Resident Portal</h2>
-          <div className="user-badge">Welcome, {tenant.name}</div>
+          <div className="user-badge">Welcome, {tenant.name || currentUser.name}</div>
         </div>
       </header>
 
@@ -160,7 +168,7 @@ export default function ResidentDashboard() {
             </span>
           </div>
           <p>Due: {tenant.utilitiesDue}</p>
-          <p style={{ fontSize: '0.8rem', color: '#6b7280' }}>Includes March usage</p>
+          <p style={{ fontSize: "0.8rem", color: "#6b7280" }}>Includes March usage</p>
         </section>
       </main>
 
@@ -170,20 +178,20 @@ export default function ResidentDashboard() {
         </button>
       </div>
 
-      <section className="info-card" style={{ marginTop: '20px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+      <section className="info-card" style={{ marginTop: "20px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
           <h3>Maintenance Requests</h3>
           <button className="secondary-btn" onClick={handleNewRequest}>+ New Request</button>
         </div>
 
         <div className="request-list">
-          {requests.map(req => (
+          {requests.map((req) => (
             <div key={req.id} className="request-item">
               <div>
                 <strong>{req.type}</strong> - {req.description}
-                <div style={{ fontSize: '0.8rem', color: '#999' }}>Submitted: {req.date}</div>
+                <div style={{ fontSize: "0.8rem", color: "#999" }}>Submitted: {req.date}</div>
               </div>
-              <span className={`status-badge ${req.status.replace(/\s+/g, '-').toLowerCase()}`}>
+              <span className={`status-badge ${req.status.replace(/\s+/g, "-").toLowerCase()}`}>
                 {req.status}
               </span>
             </div>

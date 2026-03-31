@@ -1,40 +1,43 @@
-import { useState } from 'react'
-import Login from './Login'
-import ResidentDashboard from './ResidentDashboard'
-import ApplicantDashboard from './ApplicantDashboard'
-import AdminDashboard from './AdminDashboard'
-import './App.css'
+import { useState } from "react";
+import Login from "./Login";
+import ResidentDashboard from "./ResidentDashboard";
+import ApplicantDashboard from "./ApplicantDashboard";
+import AdminDashboard from "./AdminDashboard";
+import "./App.css";
 
 function App() {
-  const [userRole, setUserRole] = useState(null); // null means not logged in
+  const [currentUser, setCurrentUser] = useState(() => {
+    const savedUser = localStorage.getItem("user");
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
 
-  const handleLogin = (role) => {
-    setUserRole(role);
+  const handleLogin = (user) => {
+    setCurrentUser(user);
   };
 
   const handleLogout = () => {
-    setUserRole(null);
+    localStorage.removeItem("user");
+    setCurrentUser(null);
   };
 
-  // 1. If no userRole, show Login page
-  if (!userRole) {
+  if (!currentUser) {
     return <Login onLogin={handleLogin} />;
   }
 
-  // 2. If logged in, show the correct Dashboard
   return (
     <div className="app-wrapper">
-      {/* Logout button stays at the top of all dashboards */}
       <nav className="debug-nav">
-        <span>Logged in as: <strong>{userRole}</strong></span>
+        <span>
+          Logged in as: <strong>{currentUser.role}</strong> ({currentUser.name})
+        </span>
         <button onClick={handleLogout}>Sign Out</button>
       </nav>
 
-      {userRole === "Resident" && <ResidentDashboard />}
-      {userRole === "Applicant" && <ApplicantDashboard />}
-      {userRole === "Admin" && <AdminDashboard />}
+      {currentUser.role === "resident" && <ResidentDashboard currentUser={currentUser} />}
+      {currentUser.role === "applicant" && <ApplicantDashboard currentUser={currentUser} />}
+      {currentUser.role === "admin" && <AdminDashboard currentUser={currentUser} />}
     </div>
   );
 }
 
-export default App
+export default App;

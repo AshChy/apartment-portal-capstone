@@ -27,15 +27,13 @@ export default function Login({ onLogin }) {
       }); 
       const data = await response.json(); 
 
-      if (!response.ok) { 
-        setErrorMessage(data.message || "Login failed"); 
-        return; 
-      } 
-      
-      /* 
-         The backend can return the user's role (Admin, Resident, or Applicant).
-      */
-      onLogin(data.role); 
+    if (!response.ok) { 
+      setErrorMessage(data.message || "Login failed"); 
+      return; 
+    }
+
+    localStorage.setItem("user", JSON.stringify(data.user));
+    onLogin(data.user); 
     } catch (error) { 
       console.error("Login error:", error); 
       setErrorMessage("Unable to connect to server - Please try again later"); 
@@ -142,9 +140,32 @@ export default function Login({ onLogin }) {
       <div style={{marginTop: '40px', padding: '20px', border: '1px dashed #ccc', borderRadius: '8px', textAlign: 'center'}}>
         <p style={{fontSize: '0.8rem', color: '#999'}}>Dev Tools: Bypass Login to View Dashboards</p>
         <div style={{display: 'flex', gap: '10px', justifyContent: 'center'}}>
-          <button onClick={() => onLogin("Admin")} style={{fontSize: '0.7rem', padding: '5px'}}>View Admin</button>
-          <button onClick={() => onLogin("Resident")} style={{fontSize: '0.7rem', padding: '5px'}}>View Resident</button>
-          <button onClick={() => onLogin("Applicant")} style={{fontSize: '0.7rem', padding: '5px'}}>View Applicant</button>
+          <button
+            onClick={() =>
+              onLogin({ userId: 1, name: "jaden", email: "jaden@apartment.test", role: "admin" })
+            }
+            style={{ fontSize: "0.7rem", padding: "5px" }}
+          >
+            View Admin
+          </button>
+
+          <button
+            onClick={() =>
+              onLogin({ userId: 2, name: "Taylor", email: "Taylor@fake.test", role: "resident" })
+            }
+            style={{ fontSize: "0.7rem", padding: "5px" }}
+          >
+            View Resident
+          </button>
+
+          <button
+            onClick={() =>
+              onLogin({ userId: 3, name: "John", email: "John@fake.test", role: "applicant" })
+            }
+            style={{ fontSize: "0.7rem", padding: "5px" }}
+          >
+            View Applicant
+          </button>
         </div>
       </div>
     </div> 
