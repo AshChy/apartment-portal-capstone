@@ -7,6 +7,7 @@ export default function AdminDashboard() {
   const [announcement, setAnnouncement] = useState("");
 
   // New Admin Creation
+  const [newAdminName, setNewAdminName] = useState("");
   const [newAdminEmail, setNewAdminEmail] = useState("");
   const [newAdminPass, setNewAdminPass] = useState("");
 
@@ -57,18 +58,41 @@ export default function AdminDashboard() {
     setAnnouncement("");
   };
 
-  const handleCreateAdmin = () => {
-    if (!newAdminEmail || !newAdminPass) {
-      alert("Error: Please provide both an email and a temporary password for the new admin.");
+  const handleCreateAdmin = async () => {
+    if (!newAdminName || !newAdminEmail || !newAdminPass) {
+      alert("Error: Please provide name, email, and a temporary password for the new admin.");
       return;
     }
 
-    alert(
-      `Success: Admin account created for ${newAdminEmail}.\nThis employee can now log in using the Administrator portal.`
-    );
+    try {
+      const response = await fetch("http://localhost:3000/api/admin/create-admin", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          name: newAdminName,
+          email: newAdminEmail,
+          password: newAdminPass
+        })
+      });
 
-    setNewAdminEmail("");
-    setNewAdminPass("");
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.message || "Failed to create admin account");
+        return;
+      }
+
+      alert(`Success: Admin account created for ${data.user.email}.`);
+
+      setNewAdminName("");
+      setNewAdminEmail("");
+      setNewAdminPass("");
+    } catch (error) {
+      console.error("Create admin error:", error);
+      alert("Unable to connect to server");
+    }
   };
 
   return (
@@ -82,7 +106,6 @@ export default function AdminDashboard() {
       </header>
 
       <main className="portal-main">
-        {/* Apartment Inventory Tracking */}
         <section className="info-card">
           <h3>Unit Inventory</h3>
           <div className="info-row">
@@ -98,7 +121,6 @@ export default function AdminDashboard() {
           </div>
         </section>
 
-        {/* Application Review Queue */}
         <section className="info-card">
           <h3>Review Queue</h3>
           <div style={{ fontSize: "0.9rem", marginBottom: "15px" }}>
@@ -130,7 +152,6 @@ export default function AdminDashboard() {
         </section>
       </main>
 
-      {/* Maintenance Requests Overview */}
       <section className="info-card" style={{ marginTop: "20px" }}>
         <h3>All Maintenance Requests</h3>
 
@@ -162,13 +183,21 @@ export default function AdminDashboard() {
         )}
       </section>
 
-      {/* Employee Management - Create New Admin Account */}
       <section className="info-card">
         <h3>Employee Management</h3>
         <p style={{ fontSize: "0.8rem", color: "#666", marginBottom: "10px" }}>
           Authorized: Add a new property manager account.
         </p>
-        <div style={{ display: "flex", gap: "10px", marginBottom: "10px" }}>
+
+        <div style={{ display: "flex", gap: "10px", marginBottom: "10px", flexWrap: "wrap" }}>
+          <input
+            type="text"
+            placeholder="New Admin Name"
+            value={newAdminName}
+            onChange={(e) => setNewAdminName(e.target.value)}
+            style={{ flex: 1, padding: "12px", borderRadius: "8px", border: "1px solid #ddd" }}
+          />
+
           <input
             type="email"
             placeholder="New Admin Email"
@@ -176,6 +205,7 @@ export default function AdminDashboard() {
             onChange={(e) => setNewAdminEmail(e.target.value)}
             style={{ flex: 1, padding: "12px", borderRadius: "8px", border: "1px solid #ddd" }}
           />
+
           <input
             type="password"
             placeholder="Temp Password"
@@ -184,12 +214,12 @@ export default function AdminDashboard() {
             style={{ flex: 1, padding: "12px", borderRadius: "8px", border: "1px solid #ddd" }}
           />
         </div>
+
         <button className="pay-btn" style={{ width: "100%" }} onClick={handleCreateAdmin}>
           + Create New Admin Account
         </button>
       </section>
 
-      {/* Resident Notifications (Broadcast) */}
       <section className="info-card">
         <h3>Broadcast Announcements</h3>
         <textarea
