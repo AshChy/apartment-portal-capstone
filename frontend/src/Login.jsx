@@ -7,6 +7,7 @@ export default function Login({ onLogin }) {
   
   /* State for Registration Popup */
   const [isRegistering, setIsRegistering] = useState(false);
+  const [regName, setRegName] = useState("");
   const [regEmail, setRegEmail] = useState("");
   const [regPass, setRegPass] = useState("");
   const [regRole, setRegRole] = useState("Applicant");
@@ -42,8 +43,8 @@ export default function Login({ onLogin }) {
 
   /* Task: Register and Redirect Immediately */
   const handleRegisterAndRedirect = async () => {
-    if (!regEmail || !regPass) {
-      alert("Please enter both email and password.");
+    if (!regName || !regEmail || !regPass) {
+      alert("Please enter name, email, and password.");
       return;
     }
 
@@ -51,22 +52,31 @@ export default function Login({ onLogin }) {
       const response = await fetch("http://localhost:3000/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          email: regEmail, 
-          password: regPass, 
-          role: regRole.toLowerCase() 
+        body: JSON.stringify({
+          name: regName,
+          email: regEmail,
+          password: regPass,
+          role: regRole.toLowerCase()
         })
       });
 
-      if (response.ok) {
-        alert(`Account created! Welcome to the ${regRole} portal.`);
-        onLogin(regRole); 
-      } else {
-        // Fallback for UI Demo
-        onLogin(regRole);
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.message || "Failed to create account");
+        return;
       }
+
+      localStorage.setItem("user", JSON.stringify(data.user));
+      setIsRegistering(false);
+      setRegName("");
+      setRegEmail("");
+      setRegPass("");
+      setRegRole("Applicant");
+      onLogin(data.user);
     } catch (error) {
-      onLogin(regRole);
+      console.error("Registration error:", error);
+      alert("Unable to connect to server");
     }
   };
 
@@ -114,6 +124,8 @@ export default function Login({ onLogin }) {
           <div className="info-card" style={{width: '400px', textAlign: 'center'}}>
             <h3>New User Registration</h3>
             <div style={{display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px'}}>
+              <input type="text" placeholder="Full Name" value={regName} onChange={(e) => setRegName(e.target.value)}
+              style={{ padding: "12px", borderRadius: "8px", border: "1px solid #ddd" }}/>
               <input type="email" placeholder="Email Address" value={regEmail} onChange={(e)=>setRegEmail(e.target.value)} 
               style={{padding: '12px', borderRadius: '8px', border: '1px solid #ddd'}}/>
               <input type="password" placeholder="Create Password" value={regPass} onChange={(e)=>setRegPass(e.target.value)} 
