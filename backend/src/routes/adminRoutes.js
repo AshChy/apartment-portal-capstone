@@ -82,4 +82,77 @@ router.post("/create-admin", (req, res) => {
   });
 });
 
+// Get real application review queue
+router.get("/applications/review-queue", (req, res) => {
+  const query = `
+    SELECT
+      a.applicationId,
+      a.submissionDate,
+      a.status,
+      a.moveInDate,
+      a.income,
+      u.userId,
+      u.name AS applicantName,
+      u.email AS applicantEmail,
+      ap.unitId,
+      ap.unitNumber,
+      ap.bedrooms,
+      ap.rentAmount
+    FROM Application a
+    JOIN User u ON a.userId = u.userId
+    JOIN ApartmentUnit ap ON a.unitId = ap.unitId
+    ORDER BY
+      CASE
+        WHEN a.status = 'Pending' THEN 0
+        WHEN a.status = 'Approved' THEN 1
+        ELSE 2
+      END,
+      a.applicationId DESC
+  `;
+
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      console.error("Admin application review queue error:", err.message);
+      return res.status(500).json({ message: "Database error" });
+    }
+
+    res.json(rows);
+  });
+});
+
+// Update application status
+router.put("/applications/:applicationId/status", (req, res) => {
+  const { applicationId } = req.params;
+  const { status } = req.body;
+
+  const allowedStatuses = ["Pending", "Approved", "Rejected"];
+
+  if (!allowedStatuses.includes(status)) {
+    return res.status(400).json({
+      message: "Invalid status value"
+    });
+  }
+
+  const query = `
+    UPDATE Application
+    SET status = ?
+    WHERE applicationId = ?
+  `;
+
+  db.run(query, [status, applicationId], function (err) {
+    if (err) {
+      console.error("Application status update error:", err.message);
+      return res.status(500).json({ message: "Database error" });
+    }
+
+    if (this.changes === 0) {
+      return res.status(404).json({ message: "Application not found" });
+    }
+
+    res.json({
+      message: "Application status updated successfully"
+    });
+  });
+});
+
 module.exports = router;

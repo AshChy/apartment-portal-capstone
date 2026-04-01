@@ -1,19 +1,99 @@
-import { useState } from 'react';
+import { useEffect, useState } from "react";
 
-/**
- * Application, Documents, & AI Chat
- */
-export default function ApplicantDashboard() {
-  const [step, setStep] = useState(2);
-  const [extraDoc, setExtraDoc] = useState(false);
-  const [isAiOpen, setIsAiOpen] = useState(false); // Controls the chat window
+export default function ApplicantDashboard({ currentUser }) {
+  const userId = currentUser?.userId;
 
-  // Simulated Upload Logic
-  const handleUpload = () => {
-    alert("Uploading Document... Analysis in progress.");
-    setExtraDoc(true);
-    setStep(3);
+  const [applications, setApplications] = useState([]);
+  const [availableUnits, setAvailableUnits] = useState([]);
+  const [selectedUnitId, setSelectedUnitId] = useState("");
+  const [moveInDate, setMoveInDate] = useState("");
+  const [income, setIncome] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId) return;
+    fetchApplications();
+    fetchAvailableUnits();
+  }, [userId]);
+
+  const fetchApplications = async () => {
+    try {
+      const response = await fetch(`http://localhost:3000/api/applications/${userId}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error(data.message || "Failed to load applications");
+        setLoading(false);
+        return;
+      }
+
+      setApplications(data);
+      setLoading(false);
+    } catch (error) {
+      console.error("Error fetching applications:", error);
+      setLoading(false);
+    }
   };
+
+  const fetchAvailableUnits = async () => {
+    try {
+      const response = await fetch("http://localhost:3000/api/units/available");
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error(data.message || "Failed to load units");
+        return;
+      }
+
+      setAvailableUnits(data);
+    } catch (error) {
+      console.error("Error fetching available units:", error);
+    }
+  };
+
+  const handleSubmitApplication = async () => {
+    if (!selectedUnitId || !moveInDate || !income) {
+      alert("Please select a unit, move-in date, and income.");
+      return;
+    }
+
+    try {
+      const response = await fetch("http://localhost:3000/api/applications", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          userId,
+          unitId: Number(selectedUnitId),
+          moveInDate,
+          income: Number(income)
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.message || "Failed to submit application");
+        return;
+      }
+
+      alert("Application submitted successfully!");
+      setSelectedUnitId("");
+      setMoveInDate("");
+      setIncome("");
+      fetchApplications();
+    } catch (error) {
+      console.error("Error submitting application:", error);
+      alert("Unable to connect to server");
+    }
+  };
+
+  if (!userId) {
+    return <div>Loading user...</div>;
+  }
+
+  const latestApplication = applications.length > 0 ? applications[0] : null;
 
   return (
     <div className="portal-container">
@@ -21,77 +101,115 @@ export default function ApplicantDashboard() {
         <div className="header-content">
           <h1>NextGen Living</h1>
           <h2>Applicant Dashboard</h2>
-          <div className="user-badge">Application ID: #44092</div>
+          <div className="user-badge">Welcome, {currentUser.name}</div>
         </div>
       </header>
 
       <main className="portal-main">
-        {/* Progress Tracker */}
-        <section className="info-card">
-          <h3>Status: <span style={{color: '#f59e0b'}}>Under Review</span></h3>
-          <p>Step {step} of 4: {step === 2 ? "Documentation" : "Final Verification"}</p>
-          <div style={{background: '#eee', height: '10px', borderRadius: '5px', marginTop: '10px'}}>
-            <div style={{
-              background: 'var(--primary)', 
-              width: step === 2 ? '45%' : '75%', 
-              height: '100%', 
-              borderRadius: '5px',
-              transition: 'width 0.6s ease' 
-            }}></div>
-          </div>
-        </section>
+        {loading ? (
+          <section className="info-card">
+            <h3>Loading application data...</h3>
+          </section>
+        ) : latestApplication ? (
+          <>
+            <section className="info-card">
+              <h3>
+                Status:{" "}
+                <span style={{ color: latestApplication.status === "Approved" ? "#059669" : "#f59e0b" }}>
+                  {latestApplication.status}
+                </span>
+              </h3>
+              <p>Application ID: #{latestApplication.applicationId}</p>
+              <p>Submitted: {latestApplication.submissionDate}</p>
+              <p>Requested Move-In Date: {latestApplication.moveInDate}</p>
+              <p>Income: ${Number(latestApplication.income).toLocaleString()}</p>
+            </section>
 
-        {/* Upload Center */}
-        <section className="info-card">
-          <h3>Upload Center</h3>
-          <ul style={{listStyle: 'none', padding: 0}}>
-            <li style={{marginBottom: '12px'}}>Proof of Income - <span className="status-badge status-uploaded">Uploaded</span></li>
-            <li style={{marginBottom: '12px'}}>Photo ID - <span className="status-badge status-uploaded">Uploaded</span></li>
-            <li style={{marginBottom: '12px'}}>
-              Previous Landlord Reference - 
-              <span className={extraDoc ? "status-badge status-uploaded" : "status-badge status-missing"}>
-                {extraDoc ? "Uploaded" : "Missing"}
-              </span>
-            </li>
-          </ul>
-          <button className="btn pay-btn" style={{width: '100%', marginTop: '15px'}} onClick={handleUpload}>
-            {extraDoc ? "Upload Additional Files" : "Upload Document"}
-          </button>
-        </section>
-      </main>
+            <section className="info-card">
+              <h3>Selected Unit</h3>
+              <p>Unit: {latestApplication.unitNumber}</p>
+              <p>Bedrooms: {latestApplication.bedrooms}</p>
+              <p>Rent: ${Number(latestApplication.rentAmount).toLocaleString()}</p>
+            </section>
 
-      {/* --- AI CHAT BUBBLE & WINDOW --- */}
-      <div className="ai-assistant-container">
-        {/* The Chat Window */}
-        {isAiOpen && (
-          <div className="ai-chat-window">
-            <div className="chat-header">
-              <span>NextGen Living AI Guide</span>
-              <button onClick={() => setIsAiOpen(false)} style={{background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontSize: '1.2rem'}}>×</button>
-            </div>
-            
-            <div className="chat-messages" style={{flex: 1, padding: '15px', overflowY: 'auto', fontSize: '0.9rem'}}>
-              <div style={{background: '#f3f4f6', padding: '10px', borderRadius: '8px', marginBottom: '10px'}}>
-                <strong>AI:</strong> Hello! is there anything I can help you with?
+            <section className="info-card">
+              <h3>Upload Center</h3>
+              <p>Document upload will be connected next.</p>
+              <ul style={{ listStyle: "none", padding: 0 }}>
+                <li style={{ marginBottom: "12px" }}>
+                  Proof of Income - <span className="status-badge status-missing">Pending Upload</span>
+                </li>
+                <li style={{ marginBottom: "12px" }}>
+                  Photo ID - <span className="status-badge status-missing">Pending Upload</span>
+                </li>
+              </ul>
+            </section>
+          </>
+        ) : (
+          <>
+            <section className="info-card">
+              <h3>Start Your Application</h3>
+              <p>Select a unit and submit your rental application.</p>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "15px" }}>
+                <select
+                  value={selectedUnitId}
+                  onChange={(e) => setSelectedUnitId(e.target.value)}
+                  style={{ padding: "12px", borderRadius: "8px", border: "1px solid #ddd" }}
+                >
+                  <option value="">Select an available unit</option>
+                  {availableUnits.map((unit) => (
+                    <option key={unit.unitId} value={unit.unitId}>
+                      Unit {unit.unitNumber} - {unit.bedrooms} BR - ${unit.rentAmount}
+                    </option>
+                  ))}
+                </select>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <label style={{ fontSize: "0.9rem", color: "#555", fontWeight: "600" }}>
+                    Desired Move-In Date
+                  </label>
+                  <input
+                    type="date"
+                    value={moveInDate}
+                    onChange={(e) => setMoveInDate(e.target.value)}
+                    style={{ padding: "12px", borderRadius: "8px", border: "1px solid #ddd" }}
+                  />
+                </div>
+
+                <input
+                  type="number"
+                  placeholder="Annual Income"
+                  value={income}
+                  onChange={(e) => setIncome(e.target.value)}
+                  style={{ padding: "12px", borderRadius: "8px", border: "1px solid #ddd" }}
+                />
+
+                <button className="pay-btn" onClick={handleSubmitApplication}>
+                  Submit Application
+                </button>
               </div>
-              {/* PLACEHOLDER MESSAGE*/}
-            </div>
+            </section>
 
-            <div className="chat-input-area" style={{padding: '10px', borderTop: '1px solid #eee'}}>
-              <input 
-                type="text" 
-                placeholder="Ask me anything..." 
-                style={{width: '100%', padding: '10px', borderRadius: '20px', border: '1px solid #ddd', outline: 'none'}}
-              />
-            </div>
-          </div>
+            <section className="info-card">
+              <h3>Available Units</h3>
+              {availableUnits.length === 0 ? (
+                <p>No available units at this time.</p>
+              ) : (
+                <div>
+                  {availableUnits.map((unit) => (
+                    <div key={unit.unitId} style={{ padding: "10px 0", borderBottom: "1px solid #eee" }}>
+                      <strong>Unit {unit.unitNumber}</strong>
+                      <div>{unit.bedrooms} Bedroom</div>
+                      <div>${unit.rentAmount}/month</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          </>
         )}
-
-        {/* The Floating Bubble Button */}
-        <div className="ai-chat-bubble" onClick={() => setIsAiOpen(!isAiOpen)}>
-          {isAiOpen ? "AI" : "AI"}
-        </div>
-      </div>
+      </main>
     </div>
   );
 }

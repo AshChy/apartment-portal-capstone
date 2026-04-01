@@ -5,8 +5,10 @@ const authRoutes = require("./routes/authRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const maintenanceRoutes = require("./routes/maintenanceRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const unitRoutes = require("./routes/unitRoutes");
+const applicationRoutes = require("./routes/applicationRoutes");
 
-const app = express(); 
+const app = express();
 const PORT = 3000;
 
 app.use(cors());
@@ -20,6 +22,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/maintenance", maintenanceRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/units", unitRoutes);
+app.use("/api/applications", applicationRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
