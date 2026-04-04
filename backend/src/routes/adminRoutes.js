@@ -155,4 +155,85 @@ router.put("/applications/:applicationId/status", (req, res) => {
   });
 });
 
+// Reassign an application to a different unit
+router.put("/applications/:applicationId/reassign-unit", (req, res) => {
+  const { applicationId } = req.params;
+  const { newUnitId } = req.body;
+
+  if (!newUnitId) {
+    return res.status(400).json({
+      message: "newUnitId is required"
+    });
+  }
+
+  const checkUnitQuery = `
+    SELECT unitId, availabilityStatus
+    FROM ApartmentUnit
+    WHERE unitId = ?
+  `;
+
+  db.get(checkUnitQuery, [newUnitId], (unitErr, unitRow) => {
+    if (unitErr) {
+      console.error("Unit lookup error:", unitErr.message);
+      return res.status(500).json({ message: "Database error" });
+    }
+
+    if (!unitRow) {
+      return res.status(404).json({ message: "Target unit not found" });
+    }
+
+    if (unitRow.availabilityStatus !== "Available") {
+      return res.status(400).json({
+        message: "Target unit is not currently available"
+      });
+    }
+
+    const updateQuery = `
+      UPDATE Application
+      SET unitId = ?
+      WHERE applicationId = ?
+    `;
+
+    db.run(updateQuery, [newUnitId, applicationId], function (updateErr) {
+      if (updateErr) {
+        console.error("Application reassignment error:", updateErr.message);
+        return res.status(500).json({ message: "Failed to reassign application" });
+      }
+
+      if (this.changes === 0) {
+        return res.status(404).json({ message: "Application not found" });
+      }
+
+      res.json({
+        message: "Application reassigned successfully"
+      });
+    });
+  });
+});
+
+router.get("/inventory-summary", (req, res) => {
+  const query = `
+    SELECT
+      (SELECT COUNT(*) FROM ApartmentUnit) AS totalUnits,
+      (SELECT COUNT(*) FROM ApartmentUnit WHERE availabilityStatus = 'Available') AS vacantReady,
+      (SELECT COUNT(*) FROM ApartmentUnit WHERE availabilityStatus = 'Occupied') AS occupied,
+      (
+        SELECT COUNT(DISTINCT a.unitId)
+        FROM Application a
+        JOIN ApartmentUnit u ON a.unitId = u.unitId
+        WHERE a.status = 'Approved'
+          AND u.availabilityStatus = 'Available'
+      ) AS pendingLease
+  `;
+
+  db.get(query, [], (err, row) => {
+    if (err) {
+      console.error("Inventory summary error:", err.message);
+      return res.status(500).json({ message: "Failed to load inventory summary" });
+    }
+
+    res.json(row);
+  });
+});
+
 module.exports = router;

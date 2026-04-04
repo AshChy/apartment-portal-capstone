@@ -7,6 +7,7 @@ const maintenanceRoutes = require("./routes/maintenanceRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const unitRoutes = require("./routes/unitRoutes");
 const applicationRoutes = require("./routes/applicationRoutes");
+const documentRoutes = require("./routes/documentRoutes");
 
 const app = express();
 const PORT = 3000;
@@ -24,6 +25,7 @@ app.use("/api/maintenance", maintenanceRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/units", unitRoutes);
 app.use("/api/applications", applicationRoutes);
+app.use("/api/documents", documentRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
