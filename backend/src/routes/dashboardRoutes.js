@@ -2,14 +2,22 @@ const db = require("../db/database");
 const express = require("express");
 const router = express.Router();
 
-router.get("/tenant-dashboard", (req, res) => {
-  const userId = 2; // temp hardcoded user
+router.get("/tenant-dashboard/:userId", (req, res) => {
+  const { userId } = req.params;
 
   const query = `
-    SELECT u.name, l.monthlyRent, l.startDate, l.endDate
+    SELECT
+      u.name,
+      a.unitId,
+      au.unitNumber,
+      au.rentAmount
     FROM User u
-    JOIN Lease l ON u.userId = l.tenantUserId
+    JOIN Application a ON u.userId = a.userId
+    JOIN ApartmentUnit au ON a.unitId = au.unitId
     WHERE u.userId = ?
+      AND u.role = 'resident'
+    ORDER BY a.applicationId DESC
+    LIMIT 1
   `;
 
   db.get(query, [userId], (err, row) => {
@@ -19,16 +27,18 @@ router.get("/tenant-dashboard", (req, res) => {
     }
 
     if (!row) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: "Resident data not found" });
     }
 
     res.json({
       tenant: {
-        name: row.name
+        name: row.name,
+        unitId: row.unitId,
+        unitNumber: row.unitNumber
       },
       rentStatus: {
-        amountDue: row.monthlyRent,
-        dueDate: row.endDate
+        amountDue: row.rentAmount,
+        dueDate: "2026-04-10"
       },
       utilities: {
         amountDue: 85.20,

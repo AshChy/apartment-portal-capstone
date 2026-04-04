@@ -12,6 +12,7 @@ function App() {
   });
 
   const handleLogin = (user) => {
+    localStorage.setItem("user", JSON.stringify(user));
     setCurrentUser(user);
   };
 
@@ -33,9 +34,20 @@ function App() {
         <button onClick={handleLogout}>Sign Out</button>
       </nav>
 
-      {currentUser.role === "resident" && <ResidentDashboard currentUser={currentUser} />}
-      {currentUser.role === "applicant" && <ApplicantDashboard currentUser={currentUser} />}
-      {currentUser.role === "admin" && <AdminDashboard currentUser={currentUser} />}
+      {currentUser.role === "resident" && (
+        <ResidentDashboard currentUser={currentUser} />
+      )}
+
+      {currentUser.role === "applicant" && (
+        <ApplicantDashboard
+          currentUser={currentUser}
+          onUserUpdate={handleLogin}
+        />
+      )}
+
+      {currentUser.role === "admin" && (
+        <AdminDashboard currentUser={currentUser} />
+      )}
     </div>
   );
 }

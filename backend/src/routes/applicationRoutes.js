@@ -81,4 +81,64 @@ router.post("/", (req, res) => {
   });
 });
 
+router.put("/:applicationId/accept-lease", (req, res) => {
+  const { applicationId } = req.params;
+
+  const getApplicationQuery = `
+    SELECT applicationId, userId, unitId, status
+    FROM Application
+    WHERE applicationId = ?
+  `;
+
+  db.get(getApplicationQuery, [applicationId], (appErr, application) => {
+    if (appErr) {
+      console.error("Lease accept lookup error:", appErr.message);
+      return res.status(500).json({ message: "Database error" });
+    }
+
+    if (!application) {
+      return res.status(404).json({ message: "Application not found" });
+    }
+
+    if (application.status !== "Approved") {
+      return res.status(400).json({
+        message: "Only approved applications can accept a lease"
+      });
+    }
+
+    const updateUserQuery = `
+      UPDATE User
+      SET role = 'resident'
+      WHERE userId = ?
+    `;
+
+    db.run(updateUserQuery, [application.userId], function (userErr) {
+      if (userErr) {
+        console.error("User role update error:", userErr.message);
+        return res.status(500).json({ message: "Failed to update user role" });
+      }
+
+      const updateUnitQuery = `
+        UPDATE ApartmentUnit
+        SET availabilityStatus = 'Occupied'
+        WHERE unitId = ?
+      `;
+
+      db.run(updateUnitQuery, [application.unitId], function (unitErr) {
+        if (unitErr) {
+          console.error("Unit status update error:", unitErr.message);
+          return res.status(500).json({ message: "Failed to update unit status" });
+        }
+
+        return res.json({
+          message: "Lease accepted successfully",
+          userId: application.userId,
+          newRole: "resident",
+          unitId: application.unitId
+        });
+      });
+    });
+  });
+});
+
 module.exports = router;

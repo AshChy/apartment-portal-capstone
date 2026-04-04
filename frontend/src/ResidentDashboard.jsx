@@ -5,6 +5,7 @@ export default function ResidentDashboard({ currentUser }) {
 
   const [tenant, setTenant] = useState({
     name: "",
+    unitNumber: "",
     rentBalance: 0,
     rentDue: "",
     utilitiesBalance: 0,
@@ -25,11 +26,12 @@ export default function ResidentDashboard({ currentUser }) {
 
   const fetchTenantDashboard = async () => {
     try {
-      const response = await fetch("http://localhost:3000/api/dashboard/tenant-dashboard");
+      const response = await fetch(`http://localhost:3000/api/dashboard/tenant-dashboard/${userId}`);
       const data = await response.json();
 
       setTenant({
         name: data.tenant.name,
+        unitNumber: data.tenant.unitNumber,
         rentBalance: Number(data.rentStatus.amountDue),
         rentDue: data.rentStatus.dueDate,
         utilitiesBalance: Number(data.utilities.amountDue),
@@ -139,7 +141,7 @@ export default function ResidentDashboard({ currentUser }) {
         <div className="header-content">
           <h1>NextGen Living</h1>
           <h2>Resident Portal</h2>
-          <div className="user-badge">Welcome, {tenant.name || currentUser.name}</div>
+          <div className="user-badge">Welcome, {currentUser.name} - Unit {tenant.unitNumber}</div>
         </div>
       </header>
 

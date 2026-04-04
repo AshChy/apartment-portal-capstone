@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-export default function ApplicantDashboard({ currentUser }) {
+export default function ApplicantDashboard({ currentUser, onUserUpdate }) {
   const userId = currentUser?.userId;
 
   const [applications, setApplications] = useState([]);
@@ -15,6 +15,8 @@ export default function ApplicantDashboard({ currentUser }) {
   const [paystub1File, setPaystub1File] = useState(null);
   const [paystub2File, setPaystub2File] = useState(null);
   const [idFile, setIdFile] = useState(null);
+
+  const [isLeaseModalOpen, setIsLeaseModalOpen] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
@@ -151,6 +153,42 @@ export default function ApplicantDashboard({ currentUser }) {
     }
   };
 
+  const handleAcceptLease = async () => {
+    if (!latestApplication) return;
+
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/applications/${latestApplication.applicationId}/accept-lease`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json"
+          }
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.message || "Failed to accept lease");
+        return;
+      }
+
+      const updatedUser = {
+        ...currentUser,
+        role: "resident"
+      };
+
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      setIsLeaseModalOpen(false);
+      alert("Lease accepted! You are now an official resident.");
+      onUserUpdate(updatedUser);
+    } catch (error) {
+      console.error("Error accepting lease:", error);
+      alert("Unable to connect to server");
+    }
+  };
+
   const getDocumentByType = (documentType) => {
     return documents.find((doc) => doc.documentType === documentType);
   };
@@ -198,6 +236,16 @@ export default function ApplicantDashboard({ currentUser }) {
               <p>Requested Move-In Date: {latestApplication.moveInDate}</p>
               <p>Income: ${Number(latestApplication.income).toLocaleString()}</p>
             </section>
+
+            {latestApplication.status === "Approved" && (
+              <section className="info-card">
+                <h3>Your Application Has Been Approved</h3>
+                <p>Your lease is ready to review and accept.</p>
+                <button className="pay-btn" onClick={() => setIsLeaseModalOpen(true)}>
+                  Sign Lease
+                </button>
+              </section>
+            )}
 
             <section className="info-card">
               <h3>Selected Unit</h3>
@@ -366,6 +414,72 @@ export default function ApplicantDashboard({ currentUser }) {
           </>
         )}
       </main>
+
+      {isLeaseModalOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.55)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 3000,
+            padding: "20px"
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: "700px",
+              background: "white",
+              borderRadius: "16px",
+              padding: "24px",
+              maxHeight: "85vh",
+              overflowY: "auto",
+              boxShadow: "0 20px 50px rgba(0,0,0,0.25)"
+            }}
+          >
+            <h2 style={{ marginTop: 0 }}>Residential Lease Agreement</h2>
+
+            <p>
+              This Residential Lease Agreement is entered into between NextGen Living
+              and the approved applicant for Unit {latestApplication.unitNumber}.
+            </p>
+
+            <p>
+              By accepting this lease, you agree to occupy the assigned unit, pay the
+              monthly rent of ${Number(latestApplication.rentAmount).toLocaleString()},
+              and follow all community rules and policies beginning on your requested
+              move-in date of {latestApplication.moveInDate}.
+            </p>
+
+            <p>
+              This agreement represents the start of your residency with NextGen
+              Living. Additional policies, payment expectations, and resident
+              responsibilities apply throughout the lease term.
+            </p>
+
+            <p>
+              If you accept below, your account will be converted from applicant to
+              resident and your assigned unit will be marked as occupied.
+            </p>
+
+            <div style={{ display: "flex", gap: "12px", marginTop: "20px" }}>
+              <button className="pay-btn" onClick={handleAcceptLease}>
+                Accept Lease
+              </button>
+
+              <button
+                className="secondary-btn"
+                onClick={() => setIsLeaseModalOpen(false)}
+              >
+                Decline
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
