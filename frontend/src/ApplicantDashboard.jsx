@@ -367,11 +367,12 @@ export default function ApplicantDashboard({ currentUser, onUserUpdate }) {
                 </select>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                  <label style={{ fontSize: "0.9rem", color: "#555", fontWeight: "600" }}>
+                  <label htmlFor="move-in-date" style={{ fontSize: "0.9rem", color: "#555", fontWeight: "600" }}>
                     Desired Move-In Date
                   </label>
                   <input
                     type="date"
+                    id="move-in-date"
                     value={moveInDate}
                     onChange={(e) => setMoveInDate(e.target.value)}
                     style={{ padding: "12px", borderRadius: "8px", border: "1px solid #ddd" }}
