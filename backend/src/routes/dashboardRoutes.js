@@ -49,7 +49,13 @@ router.get("/tenant-dashboard/:userId", (req, res) => {
 });
 
 router.get("/announcements", (req, res) => {
-  db.all("SELECT * FROM Announcement", [], (err, rows) => {
+  const query = `
+    SELECT announcementId, title, message, postDate, userId
+    FROM Announcement
+    ORDER BY announcementId DESC
+  `;
+
+  db.all(query, [], (err, rows) => {
     if (err) {
       console.error("DB Error:", err.message);
       return res.status(500).json({ error: "Database error" });

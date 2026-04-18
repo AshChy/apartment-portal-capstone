@@ -13,7 +13,10 @@ export default function ResidentDashboard({ currentUser }) {
     status: "Unpaid"
   });
 
-  const [announcement, setAnnouncement] = useState("Loading announcement...");
+  const [announcement, setAnnouncement] = useState({
+    title: "Loading...",
+    message: "Loading announcement..."
+  });
   const [requests, setRequests] = useState([]);
 
   useEffect(() => {
@@ -52,13 +55,22 @@ export default function ResidentDashboard({ currentUser }) {
       const data = await response.json();
 
       if (data.length > 0) {
-        setAnnouncement(data[0].message);
+        setAnnouncement({
+          title: data[0].title || "Community Update",
+          message: data[0].message
+        });
       } else {
-        setAnnouncement("No announcements at this time.");
+        setAnnouncement({
+          title: "Announcements",
+          message: "No announcements at this time."
+        });
       }
     } catch (error) {
       console.error("Error fetching announcements:", error);
-      setAnnouncement("Unable to load announcements.");
+      setAnnouncement({
+        title: "Announcements",
+        message: "Unable to load announcements."
+      });
     }
   };
 
@@ -146,7 +158,7 @@ export default function ResidentDashboard({ currentUser }) {
       </header>
 
       <div className="announcement-banner">
-        <strong>Announcement:</strong> {announcement}
+        <strong>{announcement.title}:</strong> {announcement.message}
       </div>
 
       <main className="portal-main">

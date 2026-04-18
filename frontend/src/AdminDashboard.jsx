@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 
-export default function AdminDashboard() {
+export default function AdminDashboard({ currentUser }) {
   const [announcement, setAnnouncement] = useState("");
+  const [announcementTitle, setAnnouncementTitle] = useState("");
 
   const [newAdminName, setNewAdminName] = useState("");
   const [newAdminEmail, setNewAdminEmail] = useState("");
@@ -218,14 +219,39 @@ export default function AdminDashboard() {
     }
   };
 
-  const handlePostAnnouncement = () => {
+  const handlePostAnnouncement = async () => {
     if (!announcement.trim()) {
       alert("Error: You must type a message before posting an announcement.");
       return;
     }
 
-    alert(`Success: Announcement posted!\n\nMessage: "${announcement}"`);
-    setAnnouncement("");
+    try {
+      const response = await fetch("http://localhost:3000/api/admin/announcements", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          title: announcementTitle,
+          message: announcement,
+          userId: currentUser?.userId
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.message || "Failed to post announcement");
+        return;
+      }
+
+      alert("Announcement posted successfully.");
+      setAnnouncement("");
+      setAnnouncementTitle("");
+    } catch (error) {
+      console.error("Post announcement error:", error);
+      alert("Unable to connect to server");
+    }
   };
 
   const getMissingDocuments = (app) => {
@@ -698,6 +724,21 @@ export default function AdminDashboard() {
 
       <section className="info-card">
         <h3>Broadcast Announcements</h3>
+
+        <input
+          type="text"
+          value={announcementTitle}
+          onChange={(e) => setAnnouncementTitle(e.target.value)}
+          placeholder="Optional title (defaults to Community Update)"
+          style={{
+            width: "100%",
+            padding: "12px",
+            borderRadius: "8px",
+            border: "1px solid #ddd",
+            marginBottom: "10px"
+          }}
+        />
+
         <textarea
           value={announcement}
           onChange={(e) => setAnnouncement(e.target.value)}
@@ -711,7 +752,12 @@ export default function AdminDashboard() {
             marginBottom: "10px"
           }}
         />
-        <button className="btn maintenance-btn" style={{ width: "100%" }} onClick={handlePostAnnouncement}>
+
+        <button
+          className="btn maintenance-btn"
+          style={{ width: "100%" }}
+          onClick={handlePostAnnouncement}
+        >
           Post Announcement
         </button>
       </section>

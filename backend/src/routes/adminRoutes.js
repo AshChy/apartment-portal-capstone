@@ -236,4 +236,46 @@ router.get("/inventory-summary", (req, res) => {
   });
 });
 
+// Create a new announcement
+router.post("/announcements", (req, res) => {
+  const { title, message, userId } = req.body;
+
+  if (!message || !message.trim()) {
+    return res.status(400).json({
+      message: "Announcement message is required"
+    });
+  }
+
+  if (!userId) {
+    return res.status(400).json({
+      message: "userId is required"
+    });
+  }
+
+  const cleanTitle = title && title.trim() ? title.trim() : "Community Update";
+  const cleanMessage = message.trim();
+
+  const query = `
+    INSERT INTO Announcement (title, message, postDate, userId)
+    VALUES (?, ?, datetime('now', 'localtime'), ?)
+  `;
+
+  db.run(query, [cleanTitle, cleanMessage, userId], function (err) {
+    if (err) {
+      console.error("Announcement insert error:", err.message);
+      return res.status(500).json({ message: "Failed to post announcement" });
+    }
+
+    res.status(201).json({
+      message: "Announcement posted successfully",
+      announcement: {
+        announcementId: this.lastID,
+        title: cleanTitle,
+        message: cleanMessage,
+        userId
+      }
+    });
+  });
+});
+
 module.exports = router;
