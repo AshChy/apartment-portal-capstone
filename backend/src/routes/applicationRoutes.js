@@ -85,9 +85,16 @@ router.put("/:applicationId/accept-lease", (req, res) => {
   const { applicationId } = req.params;
 
   const getApplicationQuery = `
-    SELECT applicationId, userId, unitId, status
-    FROM Application
-    WHERE applicationId = ?
+    SELECT
+      a.applicationId,
+      a.userId,
+      a.unitId,
+      a.status,
+      a.moveInDate,
+      u.rentAmount
+    FROM Application a
+    JOIN ApartmentUnit u ON a.unitId = u.unitId
+    WHERE a.applicationId = ?
   `;
 
   db.get(getApplicationQuery, [applicationId], (appErr, application) => {
@@ -106,35 +113,93 @@ router.put("/:applicationId/accept-lease", (req, res) => {
       });
     }
 
-    const updateUserQuery = `
-      UPDATE User
-      SET role = 'resident'
-      WHERE userId = ?
+    const checkLeaseQuery = `
+      SELECT leaseId
+      FROM Lease
+      WHERE applicationId = ?
     `;
 
-    db.run(updateUserQuery, [application.userId], function (userErr) {
-      if (userErr) {
-        console.error("User role update error:", userErr.message);
-        return res.status(500).json({ message: "Failed to update user role" });
+    db.get(checkLeaseQuery, [applicationId], (leaseCheckErr, existingLease) => {
+      if (leaseCheckErr) {
+        console.error("Lease check error:", leaseCheckErr.message);
+        return res.status(500).json({ message: "Failed to check existing lease" });
       }
 
-      const updateUnitQuery = `
-        UPDATE ApartmentUnit
-        SET availabilityStatus = 'Occupied'
-        WHERE unitId = ?
+      if (existingLease) {
+        return res.status(400).json({
+          message: "A lease has already been created for this application"
+        });
+      }
+
+      const updateUserQuery = `
+        UPDATE User
+        SET role = 'resident'
+        WHERE userId = ?
       `;
 
-      db.run(updateUnitQuery, [application.unitId], function (unitErr) {
-        if (unitErr) {
-          console.error("Unit status update error:", unitErr.message);
-          return res.status(500).json({ message: "Failed to update unit status" });
+      db.run(updateUserQuery, [application.userId], function (userErr) {
+        if (userErr) {
+          console.error("User role update error:", userErr.message);
+          return res.status(500).json({ message: "Failed to update user role" });
         }
 
-        return res.json({
-          message: "Lease accepted successfully",
-          userId: application.userId,
-          newRole: "resident",
-          unitId: application.unitId
+        const updateUnitQuery = `
+          UPDATE ApartmentUnit
+          SET availabilityStatus = 'Occupied'
+          WHERE unitId = ?
+        `;
+
+        db.run(updateUnitQuery, [application.unitId], function (unitErr) {
+          if (unitErr) {
+            console.error("Unit status update error:", unitErr.message);
+            return res.status(500).json({ message: "Failed to update unit status" });
+          }
+
+          const startDate = application.moveInDate;
+          const start = new Date(startDate);
+          const end = new Date(start);
+          end.setFullYear(end.getFullYear() + 1);
+
+          const endDate = end.toISOString().split("T")[0];
+
+          const insertLeaseQuery = `
+            INSERT INTO Lease (
+              applicationId,
+              tenantUserId,
+              unitId,
+              startDate,
+              endDate,
+              monthlyRent,
+              leaseStatus
+            )
+            VALUES (?, ?, ?, ?, ?, ?, 'Active')
+          `;
+
+          db.run(
+            insertLeaseQuery,
+            [
+              application.applicationId,
+              application.userId,
+              application.unitId,
+              startDate,
+              endDate,
+              application.rentAmount
+            ],
+            function (leaseErr) {
+              if (leaseErr) {
+                console.error("Lease insert error:", leaseErr.message);
+                return res.status(500).json({ message: "Failed to create lease" });
+              }
+
+              return res.json({
+                message: "Lease accepted successfully",
+                userId: application.userId,
+                newRole: "resident",
+                unitId: application.unitId,
+                leaseId: this.lastID
+              });
+            }
+          );
         });
       });
     });
