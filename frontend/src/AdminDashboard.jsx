@@ -34,12 +34,16 @@ export default function AdminDashboard({ currentUser }) {
     pendingLease: 0
   });
   const [loadingInventory, setLoadingInventory] = useState(true);
+  
+  const [occupiedUnits, setOccupiedUnits] = useState([]);
+  const [loadingOccupiedUnits, setLoadingOccupiedUnits] = useState(true);
 
   useEffect(() => {
     fetchMaintenanceRequests();
     fetchApplications();
     fetchAllUnits();
     fetchInventorySummary();
+    fetchOccupiedUnits();
   }, []);
 
   const fetchMaintenanceRequests = async () => {
@@ -149,6 +153,54 @@ export default function AdminDashboard({ currentUser }) {
     } catch (error) {
       console.error("Error fetching inventory summary:", error);
       setLoadingInventory(false);
+    }
+  };
+
+  const fetchOccupiedUnits = async () => {
+    try {
+      const response = await fetch("http://localhost:3000/api/admin/occupied-units");
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error(data.message || "Failed to fetch occupied units");
+        setLoadingOccupiedUnits(false);
+        return;
+      }
+
+      setOccupiedUnits(data);
+      setLoadingOccupiedUnits(false);
+    } catch (error) {
+      console.error("Error fetching occupied units:", error);
+      setLoadingOccupiedUnits(false);
+    }
+  };
+
+  const handleEvictResident = async (leaseId) => {
+    const confirmed = window.confirm("Are you sure you want to evict this resident?");
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(`http://localhost:3000/api/admin/leases/${leaseId}/evict`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.message || "Failed to evict resident");
+        return;
+      }
+
+      alert("Resident evicted successfully.");
+      fetchOccupiedUnits();
+      fetchAllUnits();
+      fetchInventorySummary();
+    } catch (error) {
+      console.error("Eviction error:", error);
+      alert("Unable to connect to server");
     }
   };
 
@@ -546,6 +598,49 @@ export default function AdminDashboard({ currentUser }) {
                 <span style={{ color: "var(--primary)", fontWeight: "bold" }}>
                   {inventorySummary.pendingLease}
                 </span>
+              </div>
+
+              <div
+                style={{
+                  marginTop: "16px",
+                  padding: "12px",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: "10px",
+                  background: "#fafafa"
+                }}
+              >
+                <h4 style={{ marginBottom: "10px" }}>Occupied Units</h4>
+
+                {loadingOccupiedUnits ? (
+                  <p>Loading occupied units...</p>
+                ) : occupiedUnits.length === 0 ? (
+                  <p>No occupied units found.</p>
+                ) : (
+                  <div style={{ maxHeight: "220px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "10px" }}>
+                    {occupiedUnits.map((unit) => (
+                      <div
+                        key={unit.leaseId}
+                        style={{
+                          padding: "10px",
+                          borderRadius: "8px",
+                          background: "white",
+                          border: "1px solid #e5e7eb"
+                        }}
+                      >
+                        <div><strong>Unit {unit.unitNumber}</strong></div>
+                        <div>Resident: {unit.residentName}</div>
+                        <div>Move-In Date: {unit.startDate}</div>
+
+                        <button
+                          style={{ marginTop: "8px" }}
+                          onClick={() => handleEvictResident(unit.leaseId)}
+                        >
+                          Evict
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </>
           )}

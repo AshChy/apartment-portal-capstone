@@ -5,7 +5,9 @@ export default function ResidentDashboard({ currentUser }) {
 
   const [tenant, setTenant] = useState({
     name: "",
+    leaseId: null,
     unitNumber: "",
+    startDate: "",
     rentBalance: 0,
     rentDue: "",
     utilitiesBalance: 0,
@@ -13,10 +15,13 @@ export default function ResidentDashboard({ currentUser }) {
     status: "Unpaid"
   });
 
+  const [hasActiveLease, setHasActiveLease] = useState(true);
+
   const [announcement, setAnnouncement] = useState({
     title: "Loading...",
     message: "Loading announcement..."
   });
+
   const [requests, setRequests] = useState([]);
 
   useEffect(() => {
@@ -32,9 +37,18 @@ export default function ResidentDashboard({ currentUser }) {
       const response = await fetch(`http://localhost:3000/api/dashboard/tenant-dashboard/${userId}`);
       const data = await response.json();
 
+      if (!data.hasActiveLease) {
+        setHasActiveLease(false);
+        return;
+      }
+
+      setHasActiveLease(true);
+
       setTenant({
         name: data.tenant.name,
+        leaseId: data.tenant.leaseId,
         unitNumber: data.tenant.unitNumber,
+        startDate: data.tenant.startDate,
         rentBalance: Number(data.rentStatus.amountDue),
         rentDue: data.rentStatus.dueDate,
         utilitiesBalance: Number(data.utilities.amountDue),
@@ -46,6 +60,7 @@ export default function ResidentDashboard({ currentUser }) {
       });
     } catch (error) {
       console.error("Error fetching tenant dashboard:", error);
+      setHasActiveLease(false);
     }
   };
 
@@ -96,7 +111,13 @@ export default function ResidentDashboard({ currentUser }) {
   };
 
   const handlePayment = () => {
-    if (window.confirm("Confirm payment of $" + (tenant.rentBalance + tenant.utilitiesBalance).toFixed(2) + "?")) {
+    if (
+      window.confirm(
+        "Confirm payment of $" +
+          (tenant.rentBalance + tenant.utilitiesBalance).toFixed(2) +
+          "?"
+      )
+    ) {
       setTenant({
         ...tenant,
         rentBalance: 0,
@@ -137,23 +158,47 @@ export default function ResidentDashboard({ currentUser }) {
     }
   };
 
+  const handleMoveOut = async () => {
+    const confirmed = window.confirm("Are you sure you want to move out?");
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/dashboard/tenant-dashboard/${userId}/move-out`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json"
+          }
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.message || "Failed to move out");
+        return;
+      }
+
+      alert("Move out completed successfully.");
+      setHasActiveLease(false);
+    } catch (error) {
+      console.error("Move out error:", error);
+      alert("Unable to connect to server");
+    }
+  };
+
   if (!userId) {
     return <div>Loading user...</div>;
   }
 
   return (
     <div className="portal-container">
-      {tenant.status === "Paid" && (
-        <div className="success-toast">
-          <span>Payment Successful! Your receipt #8829 has been generated.</span>
-        </div>
-      )}
-
       <header className="portal-header">
         <div className="header-content">
           <h1>NextGen Living</h1>
           <h2>Resident Portal</h2>
-          <div className="user-badge">Welcome, {currentUser.name} - Unit {tenant.unitNumber}</div>
+          <div className="user-badge">Welcome, {currentUser.name}</div>
         </div>
       </header>
 
@@ -161,57 +206,91 @@ export default function ResidentDashboard({ currentUser }) {
         <strong>{announcement.title}:</strong> {announcement.message}
       </div>
 
-      <main className="portal-main">
-        <section className="info-card">
-          <h3>Rent Status</h3>
-          <div className="info-row">
-            <span>Balance:</span>
-            <span className="amount" style={{ color: tenant.rentBalance === 0 ? "#059669" : "#ef4444" }}>
-              ${tenant.rentBalance.toFixed(2)}
-            </span>
-          </div>
-          <p>Due: {tenant.rentDue}</p>
-        </section>
-
-        <section className="info-card">
-          <h3>Utilities</h3>
-          <div className="info-row">
-            <span>Water & Electric:</span>
-            <span className="amount" style={{ color: tenant.utilitiesBalance === 0 ? "#059669" : "#ef4444" }}>
-              ${tenant.utilitiesBalance.toFixed(2)}
-            </span>
-          </div>
-          <p>Due: {tenant.utilitiesDue}</p>
-          <p style={{ fontSize: "0.8rem", color: "#6b7280" }}>Includes March usage</p>
-        </section>
-      </main>
-
-      <div className="payment-action-area">
-        <button className="pay-btn" onClick={handlePayment} disabled={tenant.status === "Paid"}>
-          {tenant.status === "Paid" ? "Paid ✓" : "Pay Now"}
-        </button>
-      </div>
-
-      <section className="info-card" style={{ marginTop: "20px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
-          <h3>Maintenance Requests</h3>
-          <button className="secondary-btn" onClick={handleNewRequest}>+ New Request</button>
-        </div>
-
-        <div className="request-list">
-          {requests.map((req) => (
-            <div key={req.id} className="request-item">
-              <div>
-                <strong>{req.type}</strong> - {req.description}
-                <div style={{ fontSize: "0.8rem", color: "#999" }}>Submitted: {req.date}</div>
-              </div>
-              <span className={`status-badge ${req.status.replace(/\s+/g, "-").toLowerCase()}`}>
-                {req.status}
-              </span>
+      {!hasActiveLease ? (
+        <main className="portal-main">
+          <section className="info-card">
+            <h3>No Active Lease On File</h3>
+            <p>This resident account no longer has an active lease.</p>
+            <p>Please contact property management if you believe this is a mistake.</p>
+          </section>
+        </main>
+      ) : (
+        <>
+          {tenant.status === "Paid" && (
+            <div className="success-toast">
+              <span>Payment Successful! Your receipt #8829 has been generated.</span>
             </div>
-          ))}
-        </div>
-      </section>
+          )}
+
+          <main className="portal-main">
+            <section className="info-card">
+              <h3>Rent Status</h3>
+              <div className="info-row">
+                <span>Balance:</span>
+                <span
+                  className="amount"
+                  style={{ color: tenant.rentBalance === 0 ? "#059669" : "#ef4444" }}
+                >
+                  ${tenant.rentBalance.toFixed(2)}
+                </span>
+              </div>
+              <p>Due: {tenant.rentDue}</p>
+              <p>Move-In Date: {tenant.startDate}</p>
+              <p>Unit: {tenant.unitNumber}</p>
+            </section>
+
+            <section className="info-card">
+              <h3>Utilities</h3>
+              <div className="info-row">
+                <span>Water & Electric:</span>
+                <span
+                  className="amount"
+                  style={{ color: tenant.utilitiesBalance === 0 ? "#059669" : "#ef4444" }}
+                >
+                  ${tenant.utilitiesBalance.toFixed(2)}
+                </span>
+              </div>
+              <p>Due: {tenant.utilitiesDue}</p>
+              <p style={{ fontSize: "0.8rem", color: "#6b7280" }}>Includes March usage</p>
+            </section>
+          </main>
+
+          <div className="payment-action-area" style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
+            <button className="pay-btn" onClick={handlePayment} disabled={tenant.status === "Paid"}>
+              {tenant.status === "Paid" ? "Paid ✓" : "Pay Now"}
+            </button>
+
+            <button className="secondary-btn" onClick={handleMoveOut}>
+              Move Out
+            </button>
+          </div>
+
+          <section className="info-card" style={{ marginTop: "20px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
+              <h3>Maintenance Requests</h3>
+              <button className="secondary-btn" onClick={handleNewRequest}>
+                + New Request
+              </button>
+            </div>
+
+            <div className="request-list">
+              {requests.map((req) => (
+                <div key={req.id} className="request-item">
+                  <div>
+                    <strong>{req.type}</strong> - {req.description}
+                    <div style={{ fontSize: "0.8rem", color: "#999" }}>
+                      Submitted: {req.date}
+                    </div>
+                  </div>
+                  <span className={`status-badge ${req.status.replace(/\s+/g, "-").toLowerCase()}`}>
+                    {req.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+        </>
+      )}
     </div>
   );
 }

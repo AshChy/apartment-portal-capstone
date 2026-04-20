@@ -278,4 +278,87 @@ router.post("/announcements", (req, res) => {
   });
 });
 
+router.get("/occupied-units", (req, res) => {
+  const query = `
+    SELECT
+      l.leaseId,
+      l.unitId,
+      l.startDate,
+      l.endDate,
+      l.leaseStatus,
+      u.userId,
+      u.name AS residentName,
+      u.email AS residentEmail,
+      a.unitNumber
+    FROM Lease l
+    JOIN User u ON l.tenantUserId = u.userId
+    JOIN ApartmentUnit a ON l.unitId = a.unitId
+    WHERE l.leaseStatus = 'Active'
+      AND a.availabilityStatus = 'Occupied'
+    ORDER BY a.unitNumber
+  `;
+
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      console.error("Occupied units fetch error:", err.message);
+      return res.status(500).json({ message: "Failed to load occupied units" });
+    }
+
+    res.json(rows);
+  });
+});
+
+router.put("/leases/:leaseId/evict", (req, res) => {
+  const { leaseId } = req.params;
+
+  const findLeaseQuery = `
+    SELECT leaseId, unitId
+    FROM Lease
+    WHERE leaseId = ?
+      AND leaseStatus = 'Active'
+  `;
+
+  db.get(findLeaseQuery, [leaseId], (leaseErr, lease) => {
+    if (leaseErr) {
+      console.error("Eviction lease lookup error:", leaseErr.message);
+      return res.status(500).json({ message: "Database error" });
+    }
+
+    if (!lease) {
+      return res.status(404).json({ message: "Active lease not found" });
+    }
+
+    const updateLeaseQuery = `
+      UPDATE Lease
+      SET leaseStatus = 'Terminated',
+          endDate = date('now')
+      WHERE leaseId = ?
+    `;
+
+    db.run(updateLeaseQuery, [leaseId], function (updateLeaseErr) {
+      if (updateLeaseErr) {
+        console.error("Eviction lease update error:", updateLeaseErr.message);
+        return res.status(500).json({ message: "Failed to terminate lease" });
+      }
+
+      const updateUnitQuery = `
+        UPDATE ApartmentUnit
+        SET availabilityStatus = 'Available'
+        WHERE unitId = ?
+      `;
+
+      db.run(updateUnitQuery, [lease.unitId], function (unitErr) {
+        if (unitErr) {
+          console.error("Eviction unit update error:", unitErr.message);
+          return res.status(500).json({ message: "Failed to update unit" });
+        }
+
+        res.json({
+          message: "Resident evicted successfully"
+        });
+      });
+    });
+  });
+});
+
 module.exports = router;
