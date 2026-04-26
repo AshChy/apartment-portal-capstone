@@ -1,8 +1,16 @@
 ## Database Overview
 
-Note: The .db file is treated as a generated artifact. Please avoid editing it directly. Any schema or data changes should be made through the schema.sql file or coordinated with the database structure to maintain consistency.
+This document provides an overview of the database component used in the apartment portal system, including structure, usage, and example queries.
 
-This SQLite database supports the apartment portal system by managing users, applications, leases, and payments. It includes sample data to show how an applicant moves through approval, lease creation, and payment tracking.
+This SQLite database supports the apartment portal system by managing users, applications, leases, and payments. The schema is designed to reflect the workflow from application submission through approval, lease creation, and payment tracking. Sample data is included to demonstrate this progression.
+
+Note: The .db file is treated as a generated artifact and should not be edited directly. All schema or data changes should be made through the schema definition.
+
+### Design Notes
+
+The database schema was designed with simplicity and clarity in mind to support consistent integration across the application. Primary and foreign key relationships enforce referential integrity between users, applications, leases, and payments.
+
+The structure allows for straightforward querying while maintaining a logical representation of real-world workflow progression within the system.
 
 ### Requirements
 
@@ -15,7 +23,8 @@ https://sqlitebrowser.org/dl/
 1. Download the `apartment_portal.db` file from this repository  
 2. Open DB Browser for SQLite  
 3. Click "Open Database"  
-4. Select the downloaded `.db` file  
+4. Select the downloaded `.db` file
+
 
 
 ### Viewing Data
@@ -40,12 +49,10 @@ JOIN Application a ON u.userId = a.userId
 JOIN Lease l ON a.applicationId = l.applicationId
 JOIN Payment p ON l.leaseId = p.leaseId;
 ```
-This query shows:
-
-Applicant status (Pending or Approved)
-Lease status
-Payment information
-
+This query returns:
+- Applicant status (Pending or Approved)
+- Lease status
+- Payment details
 
 
 
